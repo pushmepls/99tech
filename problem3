@@ -1,0 +1,113 @@
+import React, { useMemo, useCallback } from 'react';
+
+// Enhanced interface definitions
+interface WalletBalance {
+  currency: string;
+  amount: number;
+  blockchain: string;
+}
+
+interface FormattedWalletBalance extends WalletBalance {
+  formatted: string;
+  usdValue?: number; // Added optional USD value to the interface
+}
+
+interface Props extends BoxProps {
+  children?: React.ReactNode;
+}
+
+// Mock implementations (would be imported in real app)
+interface BoxProps {
+  className?: string;
+  children?: React.ReactNode;
+  [key: string]: any;
+}
+
+const useWalletBalances = (): WalletBalance[] => [];
+const usePrices = (): Record<string, number> => ({});
+
+const WalletRow: React.FC<{
+  className?: string;
+  amount: number;
+  usdValue: number;
+  formattedAmount: string;
+}> = ({ className, amount, usdValue, formattedAmount }) => (
+  <div className={className}>
+    <span>Amount: {formattedAmount}</span>
+    <span>USD Value: ${usdValue.toFixed(2)}</span>
+  </div>
+);
+
+const classes = { row: 'wallet-row' };
+
+// Define priority mapping using enum-like approach
+const BlockchainPriority = {
+  OSMOSIS: 100,
+  ETHEREUM: 50,
+  ARBITRUM: 30,
+  ZILLIQA: 20,
+  NEO: 20,
+  DEFAULT: -99
+} as const;
+
+const WalletPage: React.FC<Props> = ({ children, ...rest }) => {
+  const balances = useWalletBalances();
+  const prices = usePrices();
+
+  // Memoized priority calculation function
+  const calculatePriority = useCallback((blockchain: string): number => {
+    const blockchainUpper = blockchain.toUpperCase();
+    return BlockchainPriority[blockchainUpper as keyof typeof BlockchainPriority] || BlockchainPriority.DEFAULT;
+  }, []);
+
+  // Enhanced data processing with error handling
+  const enhancedBalances = useMemo(() => {
+    if (!balances?.length) return [];
+
+    return balances
+      .filter((wallet: WalletBalance) => {
+        const priority = calculatePriority(wallet.blockchain);
+        // Filter out invalid balances and those with low priority
+        return priority > BlockchainPriority.DEFAULT && wallet.amount > 0;
+      })
+      .sort((first: WalletBalance, second: WalletBalance) => {
+        const firstPriority = calculatePriority(first.blockchain);
+        const secondPriority = calculatePriority(second.blockchain);
+        
+        // Descending order sorting
+        return secondPriority - firstPriority;
+      })
+      .map((wallet: WalletBalance): FormattedWalletBalance => {
+        const price = prices[wallet.currency] || 0;
+        return {
+          ...wallet,
+          formatted: wallet.amount.toLocaleString(undefined, { 
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6 
+          }),
+          usdValue: price * wallet.amount
+        };
+      });
+  }, [balances, calculatePriority]); // Added calculatePriority to dependencies
+
+  // Render wallet rows with enhanced error handling
+  const walletRows = useMemo(() => {
+    return enhancedBalances.map((wallet: FormattedWalletBalance) => (
+      <WalletRow 
+        className={classes.row}
+        key={`wallet-${wallet.blockchain}-${wallet.currency}`}
+        amount={wallet.amount}
+        usdValue={wallet.usdValue || 0}
+        formattedAmount={wallet.formatted}
+      />
+    ));
+  }, [enhancedBalances]);
+
+  return (
+    <div {...rest}>
+      {walletRows}
+    </div>
+  );
+};
+
+export default WalletPage;
