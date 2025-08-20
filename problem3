@@ -111,3 +111,28 @@ const WalletPage: React.FC<Props> = ({ children, ...rest }) => {
 };
 
 export default WalletPage;
+
+//Critical Bug Fixes
+
+//Fixed undefined variable error: The old code referenced lhsPriority in the filter function, but this variable was never defined. The new code correctly uses balancePriority (calculated from getPriority(balance.blockchain)).
+//Fixed inverted filter logic: The old filter returned true for balances with amount <= 0 and false for valid balances, which is backwards. The new code correctly filters out invalid balances with wallet.amount > 0.
+//Fixed missing blockchain property: The old WalletBalance interface was missing the blockchain property that was being used in getPriority(). The new version properly includes this in the interface.
+//Fixed mapping wrong array: The old code called .map() on sortedBalances (which contains WalletBalance objects) but typed the parameter as FormattedWalletBalance. The new code properly maps over the correctly formatted array.
+
+//Performance Optimizations
+
+//Eliminated redundant processing: The old code created formattedBalances but never used it, then incorrectly mapped over sortedBalances. The new code combines filtering, sorting, and formatting into a single useMemo operation.
+//Added proper memoization dependencies: The old useMemo was missing prices in its dependency array despite using it. The new code includes all necessary dependencies.
+//Memoized the priority calculation function: Using useCallback for calculatePriority prevents unnecessary re-renders.
+//Memoized the rendered rows: The walletRows are now memoized to avoid re-rendering when the component re-renders for other reasons.
+
+//Code Quality Improvements
+
+//Replaced magic numbers with constants: The new code uses a BlockchainPriority object instead of hardcoded values in a switch statement, making priorities more maintainable.
+//Improved error handling: Added null checks (if (!balances?.length)) and fallback values (prices[wallet.currency] || 0).
+//Better formatting: Enhanced number formatting with toLocaleString() instead of just toFixed(), providing better internationalization support.
+//Improved key generation: Replaced array index keys with meaningful composite keys (wallet-${wallet.blockchain}-${wallet.currency}) to prevent React rendering issues.
+//Enhanced type safety: Added proper TypeScript types and made the code more type-safe throughout.
+//Cleaner component structure: Better separation of concerns with dedicated functions for different operations.
+
+//The new version transforms what was essentially broken code (due to the undefined variable and inverted logic) into a robust, performant, and maintainable component.
